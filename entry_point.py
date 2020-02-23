@@ -169,26 +169,26 @@ commands_list = {
                 }
             },
             '4' : {
-                '?' : "Print FLIMS Configurations",
-                'has_function' : True,
-                'function' : config_flims,
-                'args' : {'operation' : "get_flims_configurations"},
-                'sub_command' :{
-                }
-            },
-            '5' : {
-                '?' : "Set Client Name Manager",
+                '?' : "Set Client Name",
                 'has_function' : True,
                 'function' : config_flims,
                 'args' : {'operation' : "client_name"},
                 'sub_command' :{
                 }
             },
-            '6' : {
+            '5' : {
                 '?' : "Set LabContact Manager",
                 'has_function' : True,
                 'function' : config_flims,
                 'args' : {'operation' : "lab_contact_manager"},
+                'sub_command' :{
+                }
+            },
+            '6' : {
+                '?' : "Print FLIMS Configurations",
+                'has_function' : True,
+                'function' : config_flims,
+                'args' : {'operation' : "get_flims_configurations"},
                 'sub_command' :{
                 }
             },
@@ -245,7 +245,7 @@ commands_list = {
 }
 
 def run_app(commands_list):
-    print("Before start import process, please consider the following required steps:\n")
+    print("Before starting import process, please consider the following required steps:\n")
     print("1- Create a client from FLIMS interface. You should use the same client name to add patients under that client.\n")
     print("2- Create a Lab Contact from FLIMS interface. You should use the same lab contact name before importing lab departments.\n\n")
     for command_key in commands_list.keys():
