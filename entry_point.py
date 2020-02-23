@@ -51,6 +51,7 @@ def config_flims(operation, **kwargs):
         'database_connection_settings' : set_database_connection_settings,
         'flims_system_server_configurations' : set_flims_system_server_configurations,
         'lab_contact_manager' : set_lab_contact_manager,
+        'client_name' : set_client_name,
         'get_flims_configurations' : get_flims_configurations
     }[operation](**kwargs)        
 
