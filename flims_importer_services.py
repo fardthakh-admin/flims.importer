@@ -320,12 +320,25 @@ class AnalysisSpecificationService(AbstractService):
             with f:
                 writer = csv.writer(f)
                 writer.writerow(csvHeader)
-                print(dynamic_spec_dictionary_by_gender_age[key])
+                #print(dynamic_spec_dictionary_by_gender_age[key])
                 for key2 in dynamic_spec_dictionary_by_gender_age[key]:
-                    print(dynamic_spec_dictionary_by_gender_age[key][key2].getDataAsList())
+                    #print(dynamic_spec_dictionary_by_gender_age[key][key2].getDataAsList())
                     writer.writerow(dynamic_spec_dictionary_by_gender_age[key][key2].getDataAsList())
+            print("Dynamic Analysis Specification for " + file_name + " created and saved under the path " + "data/" + file_name + '.csv')
+        print("\nFollow the instructions to complete the process:")
+        print("Note: You will create Dynamic Analysis Specification for each sample type.")
+        print("Note: Use the link below to create each Dynamic Analysis Specifications and upload its file.")
+        print(self.generateBrowserUrl() + "bika_setup/dynamic_analysisspecs/++add++DynamicAnalysisSpec")
+        print("Note: Consider naming each Dynamic Analysis Specification in convenient way, such as {Sample Type Name}-DAS")
+        for key in dynamic_spec_dictionary_by_gender_age:
+            file_name = key.replace(',', '')
+            file_name = file_name.replace('+', '')
+            file_name = file_name.replace('/', ' ')
+            print("For " + file_name + ": upload file (" + "data/" + file_name + ".csv)")
+            input('Press Enter to continue.')
+        print("All Dynamic Analysis Specification files uploaded.")
         #print(dynamic_spec_dictionary_by_gender_age)
-        return dynamic_spec_dictionary_by_gender_age
+        #return dynamic_spec_dictionary_by_gender_age
 
 class PatientService(AbstractService):
 
