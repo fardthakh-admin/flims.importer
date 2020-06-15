@@ -33,7 +33,7 @@ class AbstractDAO(ABC):
     def generateWhereClause(self, defaultCriteriaDictionary, criteriaDictionary):
         whereClause = ""
         for criteria, defaultValue in defaultCriteriaDictionary.items():
-            print(criteria, criteriaDictionary[criteria])
+            #print(criteria, criteriaDictionary[criteria])
             if(criteriaDictionary[criteria] != defaultValue):
                 whereClause += " and " + criteria[1:] + " = " + str(criteriaDictionary[criteria])
         return whereClause
