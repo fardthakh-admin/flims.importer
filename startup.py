@@ -16,7 +16,7 @@ importer_configurations = {
         "database_host_url" : "localhost",
         "database_port" : "1433",
         "database_username" : "sa",
-        "database_password" : "RedPill@mssql2019",
+        "database_password" : "abcl2019",
         "database_name" : "IntegratedLAB",
         "database_schema" : "dao"
     },
