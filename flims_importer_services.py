@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 import requests
 import json
 import mechanize
+import pandas as pd
+import xlsxwriter
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
@@ -79,6 +81,7 @@ class LabDepartmentService(AbstractService):
                 labDepartmentEntity = LabDepartmentEntity()
                 labDepartmentEntity.title = departmentEntity.depname
                 labDepartmentEntity.Manager.title = self._importer_configurations["flims_configurations"]["lab_contact_manager"]
+                print(labDepartmentEntity.as_dictionary())
                 session.post(super().generateAPIUrl() + "create", data = json.dumps(labDepartmentEntity.as_dictionary()), headers = headers)
             else:
                 print("Error: Can't add department ", departmentEntity.depname, ", it is already exist.")
@@ -311,41 +314,35 @@ class AnalysisSpecificationService(AbstractService):
 
                             elif testResultTypeEntity.Tstgender == "Spetial":
                                 continue
+        print("\nFollow the instructions to complete the process:")
+        print("Note: You will create Dynamic Analysis Specification for each sample type.")
+        print("Note: Use the link below to create each Dynamic Analysis Specifications and upload its file.")
+        print(self.generateBrowserUrl() + "bika_setup/dynamic_analysisspecs/++add++DynamicAnalysisSpec")
+        print("Note: Consider naming each Dynamic Analysis Specification in a convenient way, such as {(SampleTypeName) DAS}")                                
         csvHeader = ["Keyword", "Gender", "Age_From", "Age_To", "min", "max"]
         for key in dynamic_spec_dictionary_by_gender_age:
             file_name = key.replace(',', '')
             file_name = file_name.replace('+', '')
             file_name = file_name.replace('/', ' ')
-            f = open("data/" + file_name + '.csv', 'w')
-            with f:
-                writer = csv.writer(f)
-                writer.writerow(csvHeader)
-                #print(dynamic_spec_dictionary_by_gender_age[key])
+            file_name = "data/" + file_name + '.xlsx'
+            with xlsxwriter.Workbook(file_name) as workbook:
+                worksheet = workbook.add_worksheet()
+                worksheet.write_row(0, 0, csvHeader)
+                row = 1
                 for key2 in dynamic_spec_dictionary_by_gender_age[key]:
-                    #print(dynamic_spec_dictionary_by_gender_age[key][key2].getDataAsList())
-                    writer.writerow(dynamic_spec_dictionary_by_gender_age[key][key2].getDataAsList())
-            print("Dynamic Analysis Specification for " + file_name + " created and saved under the path " + "data/" + file_name + '.csv')
-        print("\nFollow the instructions to complete the process:")
-        print("Note: You will create Dynamic Analysis Specification for each sample type.")
-        print("Note: Use the link below to create each Dynamic Analysis Specifications and upload its file.")
-        print(self.generateBrowserUrl() + "bika_setup/dynamic_analysisspecs/++add++DynamicAnalysisSpec")
-        print("Note: Consider naming each Dynamic Analysis Specification in convenient way, such as {Sample Type Name}-DAS")
-        for key in dynamic_spec_dictionary_by_gender_age:
-            file_name = key.replace(',', '')
-            file_name = file_name.replace('+', '')
-            file_name = file_name.replace('/', ' ')
-            print("For " + file_name + ": upload file (" + "data/" + file_name + ".csv)")
-            input('Press Enter to continue.')
+                    worksheet.write_row(row, 0, dynamic_spec_dictionary_by_gender_age[key][key2].getDataAsList())
+                    row += 1
+            workbook.close()
+            print("Dynamic Analysis Specification created and saved under the path " + file_name)
+            input("Upload file (" + file_name + ") then press Enter to continue.")
         print("All Dynamic Analysis Specification files uploaded.")
-        #print(dynamic_spec_dictionary_by_gender_age)
-        #return dynamic_spec_dictionary_by_gender_age
 
 class PatientService(AbstractService):
 
     def __init__(self, importer_configurations):
         super().__init__(importer_configurations)
 
-    def importPatients(self):
+    def importPatients(self, last_patient_id):
         session = super().loginByAPI()
         headers = {'User-Agent': 'Mozilla/5.0', "content-type": "application/json"}
         response = session.get(super().generateAPIUrl() + "client?title=" + self._importer_configurations["flims_configurations"]["client_name"], headers = headers)
@@ -373,165 +370,184 @@ class PatientService(AbstractService):
             patientDAO = PatientDAO(self._importer_configurations["database_configurations"])
             transAmountDetailsDAO = TransAmountDetailsDAO(self._importer_configurations["database_configurations"])
             resultDAO = ResultDAO(self._importer_configurations["database_configurations"])
-            pulledPatientsList = patientDAO.searchPatients()
+            pulledPatientsList = patientDAO.searchPatients(last_patient_id)
             for pulledPatientEntity in pulledPatientsList:
                 #
+
                 patientEntity = PatientEntity()
-                patientEntity.clientPatientID = str(patientEntity.clientPatientID) + "" + str(pulledPatientEntity.PatNumber)
-                full_name = ""
-                if pulledPatientEntity.PatarName == '':
-                    full_name = pulledPatientEntity.PatName.split()
-                else:
-                    full_name = pulledPatientEntity.PatarName.split()
-                if len(full_name) == 1:
-                    patientEntity.firstname = full_name[0]
-                elif len(full_name) == 2:
-                    patientEntity.firstname = full_name[0]
-                    patientEntity.surname = full_name[1]
-                elif len(full_name) == 3:
-                    patientEntity.firstname = full_name[0]
-                    patientEntity.middlename = full_name[1]
-                    patientEntity.surname = full_name[2]
-                elif len(full_name) == 4:
-                    patientEntity.firstname = full_name[0]
-                    patientEntity.middlename = full_name[1] + " " + full_name[2]
-                    patientEntity.surname = full_name[3]
-                elif len(full_name) == 5:
-                    patientEntity.firstname = full_name[0]
-                    patientEntity.middlename = full_name[1] + " " + full_name[2] + " " + full_name[3]
-                    patientEntity.surname = full_name[4]
-                elif len(full_name) == 6:
-                    patientEntity.firstname = full_name[0]
-                    patientEntity.middlename = full_name[1] + " " + full_name[2] + " " + full_name[3]
-                    patientEntity.surname = full_name[4] + " " + full_name[5]
-                if pulledPatientEntity.PatSex == "Male":
-                    patientEntity.salutation = "Mr"
-                    patientEntity.gender = "male"
-                elif pulledPatientEntity.PatSex == "Female":
-                    patientEntity.salutation = "Mrs"
-                    patientEntity.gender = "female"
-                patientEntity.birthDate = pulledPatientEntity.PatDateOfBirth
-                temp_birthdate = patientEntity.birthDate.split("-")
-                age = Utility.calculate_age(int(temp_birthdate[2]), int(temp_birthdate[1]), int(temp_birthdate[0]))
-                patientEntity.age_splitted_year = age[0]
-                patientEntity.age_splitted_month = age[1]
-                patientEntity.age_splitted_day = age[2]
-                patientEntity.emailAddress = pulledPatientEntity.PatEmail
-                patientEntity.homePhone = pulledPatientEntity.PatTelephone
-                patientEntity.mobilePhone = pulledPatientEntity.PatMobile
-                patientEntity.civilStatus = pulledPatientEntity.PatMaritalStatus
+                try:
+                    patientEntity.clientPatientID = str(patientEntity.clientPatientID) + "" + str(pulledPatientEntity.PatNumber)
+                    full_name = ""
+                    if pulledPatientEntity.PatarName == '':
+                        full_name = pulledPatientEntity.PatName.split()
+                    else:
+                        full_name = pulledPatientEntity.PatarName.split()
+                    if len(full_name) == 1:
+                        patientEntity.firstname = full_name[0]
+                    elif len(full_name) == 2:
+                        patientEntity.firstname = full_name[0]
+                        patientEntity.surname = full_name[1]
+                    elif len(full_name) == 3:
+                        patientEntity.firstname = full_name[0]
+                        patientEntity.middlename = full_name[1]
+                        patientEntity.surname = full_name[2]
+                    elif len(full_name) == 4:
+                        patientEntity.firstname = full_name[0]
+                        patientEntity.middlename = full_name[1] + " " + full_name[2]
+                        patientEntity.surname = full_name[3]
+                    elif len(full_name) == 5:
+                        patientEntity.firstname = full_name[0]
+                        patientEntity.middlename = full_name[1] + " " + full_name[2] + " " + full_name[3]
+                        patientEntity.surname = full_name[4]
+                    elif len(full_name) == 6:
+                        patientEntity.firstname = full_name[0]
+                        patientEntity.middlename = full_name[1] + " " + full_name[2] + " " + full_name[3]
+                        patientEntity.surname = full_name[4] + " " + full_name[5]
+                    if pulledPatientEntity.PatSex == "Male":
+                        patientEntity.salutation = "Mr"
+                        patientEntity.gender = "male"
+                    elif pulledPatientEntity.PatSex == "Female":
+                        patientEntity.salutation = "Mrs"
+                        patientEntity.gender = "female"
+                    patientEntity.birthDate = pulledPatientEntity.PatDateOfBirth
+                    temp_birthdate = patientEntity.birthDate.split("-")
+                    age = Utility.calculate_age(int(temp_birthdate[2]), int(temp_birthdate[1]), int(temp_birthdate[0]))
+                    patientEntity.age_splitted_year = age[0]
+                    patientEntity.age_splitted_month = age[1]
+                    patientEntity.age_splitted_day = age[2]
+                    patientEntity.emailAddress = pulledPatientEntity.PatEmail
+                    patientEntity.homePhone = pulledPatientEntity.PatTelephone
+                    patientEntity.mobilePhone = pulledPatientEntity.PatMobile
+                    patientEntity.civilStatus = pulledPatientEntity.PatMaritalStatus
 
-                #analysisRequestsList = []
-                transAmountDetailsEntityForSearch = TransAmountDetailsEntity()
-                transAmountDetailsEntityForSearch.pat_id = pulledPatientEntity.PatNumber
-                transAmountDetailsList = transAmountDetailsDAO.searchTransAmountDetails(transAmountDetailsEntityForSearch.getCriteriaDictionary())
-                for transAmountDetailsEntity in transAmountDetailsList:
-                    if patientEntity.PatientCoverageRate < transAmountDetailsEntity.PatCoverage:
-                        patientEntity.PatientCoverageRate = transAmountDetailsEntity.PatCoverage
-                driver = super().loginBySeleniumBrowser()
-                driver.get(super().generateBrowserUrl() + "patients/createObject?type_name=Patient")
-                driver.find_element_by_id('PrimaryReferrer').send_keys(patientEntity.primaryReferrer)
-                time.sleep(1)                
-                driver.find_element_by_id('PrimaryReferrer').send_keys(Keys.TAB)
-                driver.find_element_by_id('PrimaryReferrer').send_keys(Keys.TAB)
-                driver.find_element_by_id('ClientPatientID').send_keys(patientEntity.clientPatientID);
-                driver.find_element_by_id('Salutation').send_keys(patientEntity.salutation)
-                driver.find_element_by_id('Firstname').send_keys(patientEntity.firstname)
-                driver.find_element_by_id('Middleinitial').send_keys(patientEntity.middleinitial)
-                driver.find_element_by_id('Middlename').send_keys(patientEntity.middlename)
-                driver.find_element_by_id('Surname').send_keys(patientEntity.surname)
-                time.sleep(1)
-                driver.find_element_by_id('Gender').send_keys(patientEntity.gender)
-                driver.find_element_by_id('Gender').click()
-                driver.find_element_by_id('BirthDate').send_keys(patientEntity.birthDate)
-                driver.find_element_by_id('BirthDate').send_keys(Keys.TAB)
-                driver.find_element_by_id('CountryState.country').send_keys(patientEntity.countryState_country)
-                driver.find_element_by_id('CountryState.country').click()
-                driver.find_element_by_id('CountryState.state').send_keys(patientEntity.countryState_state)
-                driver.find_element_by_id('CountryState.state').click()
-                driver.find_element_by_id('fieldsetlegend-personal').click()
-                driver.find_element_by_id('EmailAddress').send_keys(patientEntity.emailAddress)
-                driver.find_element_by_id('HomePhone').send_keys(patientEntity.homePhone)
-                driver.find_element_by_id('MobilePhone').send_keys(patientEntity.mobilePhone)
-                driver.find_element_by_id('CivilStatus').send_keys(patientEntity.civilStatus)
-                driver.find_element_by_name('form.button.save').click()
+                    transAmountDetailsEntityForSearch = TransAmountDetailsEntity()
+                    transAmountDetailsEntityForSearch.pat_id = pulledPatientEntity.PatNumber
+                    transAmountDetailsList = transAmountDetailsDAO.searchTransAmountDetails(transAmountDetailsEntityForSearch.getCriteriaDictionary())
+                    for transAmountDetailsEntity in transAmountDetailsList:
+                        if patientEntity.PatientCoverageRate < transAmountDetailsEntity.PatCoverage:
+                            patientEntity.PatientCoverageRate = transAmountDetailsEntity.PatCoverage
+                except Exception as e:
+                    message = "Unknown Exception"
+                    if hasattr(e, 'message'):
+                       message = e.message
+                    Utility.write_log("PatientService", "Exception reading patient number(" + str(pulledPatientEntity.PatNumber) +") :" + message)
+                    continue
+                try:
+                    driver = super().loginBySeleniumBrowser()
+                    driver.get(super().generateBrowserUrl() + "patients/createObject?type_name=Patient")
+                    driver.find_element_by_id('PrimaryReferrer').send_keys(patientEntity.primaryReferrer)
+                    time.sleep(1)
+                    driver.find_element_by_id('PrimaryReferrer').send_keys(Keys.TAB)
+                    driver.find_element_by_id('PrimaryReferrer').send_keys(Keys.TAB)
+                    driver.find_element_by_id('ClientPatientID').send_keys(patientEntity.clientPatientID)
+                    driver.find_element_by_id('Salutation').send_keys(patientEntity.salutation)
+                    driver.find_element_by_id('Firstname').send_keys(patientEntity.firstname)
+                    driver.find_element_by_id('Middleinitial').send_keys(patientEntity.middleinitial)
+                    driver.find_element_by_id('Middlename').send_keys(patientEntity.middlename)
+                    driver.find_element_by_id('Surname').send_keys(patientEntity.surname)
+                    time.sleep(1)
+                    driver.find_element_by_id('Gender').send_keys(patientEntity.gender)
+                    driver.find_element_by_id('Gender').click()
+                    driver.find_element_by_id('BirthDate').send_keys(patientEntity.birthDate)
+                    driver.find_element_by_id('BirthDate').send_keys(Keys.TAB)
+                    driver.find_element_by_id('CountryState.country').send_keys(patientEntity.countryState_country)
+                    driver.find_element_by_id('CountryState.country').click()
+                    driver.find_element_by_id('CountryState.state').send_keys(patientEntity.countryState_state)
+                    driver.find_element_by_id('CountryState.state').click()
+                    driver.find_element_by_id('fieldsetlegend-personal').click()
+                    driver.find_element_by_id('EmailAddress').send_keys(patientEntity.emailAddress)
+                    driver.find_element_by_id('HomePhone').send_keys(patientEntity.homePhone)
+                    driver.find_element_by_id('MobilePhone').send_keys(patientEntity.mobilePhone)
+                    driver.find_element_by_id('CivilStatus').send_keys(patientEntity.civilStatus)
+                    driver.find_element_by_name('form.button.save').click()
+                except Exception as e:
+                    message = "Unknown Exception"
+                    if hasattr(e, 'message'):
+                       message = e.message
+                    Utility.write_log("PatientService", "Exception adding patient number(" + str(pulledPatientEntity.PatNumber) +") :" + message)
+                    continue
+                try:
+                    for transAmountDetailsEntity in transAmountDetailsList:
+                        resultEntityForSearch = ResultEntity()
+                        resultEntityForSearch.restrano = transAmountDetailsEntity.trano
+                        resultsList = resultDAO.searchResults(resultEntityForSearch.getCriteriaDictionary())
+                        for resultEntity in resultsList:
+                            analysisRequestEntity = AnalysisRequestEntity()
+                            analysisRequestEntity.Client = patientEntity.primaryReferrer
+                            analysisRequestEntity.Contact = self._importer_configurations["flims_configurations"]["lab_contact_manager"]
+                            if pulledPatientEntity.PatarName == '':
+                                analysisRequestEntity.Patient = pulledPatientEntity.PatName
+                            else:
+                                analysisRequestEntity.Patient = pulledPatientEntity.PatarName
+                            analysisRequestEntity.DateSampled = transAmountDetailsEntity.datee
+                            #analysisRequestEntity.InternalUse = "checked"
+                            analysisRequestEntity.SampleType = testsToShowHistory[resultEntity.reststname].TstSpecimal1
+                            analysisRequestEntity.ClientSampleID = resultEntity.reststname
+                        
+                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/ar_add?ar_count=1")
+                            driver.find_element_by_id('Patient-0').send_keys(patientEntity.clientPatientID)
+                            time.sleep(1)
+                            driver.find_element_by_id('Patient-0').send_keys(Keys.TAB)
+                            time.sleep(1)
+                            driver.find_element_by_id('DateSampled-0').send_keys(analysisRequestEntity.DateSampled)
+                            driver.find_element_by_id('DateSampled-0').send_keys(Keys.TAB)
+                            driver.find_element_by_id('SampleType-0').send_keys(analysisRequestEntity.SampleType)
+                            time.sleep(2)
+                            # driver.find_element_by_id('SampleType-0').send_keys(Keys.DOWN)
+                            driver.find_element_by_id('SampleType-0').send_keys(Keys.ENTER)
+                            driver.find_element_by_id('SampleType-0').send_keys(Keys.TAB)
+                            time.sleep(2)
+                            driver.find_element_by_id('ClientSampleID-0').send_keys(analysisRequestEntity.ClientSampleID)
+                            #driver.find_element_by_id('SampleType-0').click()
+                            driver.find_element_by_id('analyses-list').click()
+                            time.sleep(2)
+                            print ("Category name: ", testCategoriesMapByID[str(testsToShowHistory[resultEntity.reststname].CatNumber)].CatName)
+                            response2 = session.get(super().generateAPIUrl() + "analysiscategory?title=" + requests.utils.quote(testCategoriesMapByID[str(testsToShowHistory[resultEntity.reststname].CatNumber)].CatName), headers = headers)
 
-                for transAmountDetailsEntity in transAmountDetailsList:
-                    resultEntityForSearch = ResultEntity()
-                    resultEntityForSearch.restrano = transAmountDetailsEntity.trano
-                    resultsList = resultDAO.searchResults(resultEntityForSearch.getCriteriaDictionary())
-                    for resultEntity in resultsList:
-                        analysisRequestEntity = AnalysisRequestEntity()
-                        analysisRequestEntity.Client = patientEntity.primaryReferrer
-                        analysisRequestEntity.Contact = self._importer_configurations["flims_configurations"]["lab_contact_manager"]
-                        if pulledPatientEntity.PatarName == '':
-                            analysisRequestEntity.Patient = pulledPatientEntity.PatName
-                        else:
-                            analysisRequestEntity.Patient = pulledPatientEntity.PatarName
-                        analysisRequestEntity.DateSampled = transAmountDetailsEntity.datee
-                        #analysisRequestEntity.InternalUse = "checked"
-                        analysisRequestEntity.SampleType = testsToShowHistory[resultEntity.reststname].TstSpecimal1
-                        analysisRequestEntity.ClientSampleID = resultEntity.reststname
-
-                        driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/ar_add?ar_count=1")
-                        driver.find_element_by_id('Patient-0').send_keys(patientEntity.clientPatientID)
-                        time.sleep(1)
-                        driver.find_element_by_id('Patient-0').send_keys(Keys.TAB)
-                        time.sleep(1)
-                        driver.find_element_by_id('DateSampled-0').send_keys(analysisRequestEntity.DateSampled)
-                        driver.find_element_by_id('DateSampled-0').send_keys(Keys.TAB)
-                        driver.find_element_by_id('SampleType-0').send_keys(analysisRequestEntity.SampleType)
-                        time.sleep(2)
-                        # driver.find_element_by_id('SampleType-0').send_keys(Keys.DOWN)
-                        driver.find_element_by_id('SampleType-0').send_keys(Keys.ENTER)
-                        driver.find_element_by_id('SampleType-0').send_keys(Keys.TAB)
-                        time.sleep(2)
-                        driver.find_element_by_id('ClientSampleID-0').send_keys(analysisRequestEntity.ClientSampleID)
-                        #driver.find_element_by_id('SampleType-0').click()
-                        driver.find_element_by_id('analyses-list').click()
-                        time.sleep(2)
-                        print ("Category name: ", testCategoriesMapByID[str(testsToShowHistory[resultEntity.reststname].CatNumber)].CatName)
-                        response2 = session.get(super().generateAPIUrl() + "analysiscategory?title=" + requests.utils.quote(testCategoriesMapByID[str(testsToShowHistory[resultEntity.reststname].CatNumber)].CatName), headers = headers)
-
-                        driver.find_element_by_id(response2.json()["items"][0]["id"]).click()
-                        response2 = session.get(super().generateAPIUrl() + "analysisservice?title=" + requests.utils.quote(testsToShowHistory[resultEntity.reststname].TstName), headers = headers)
-                        analysis_service_title = 'cb_0_' + response2.json()["items"][0]["uid"]
-                        print (analysis_service_title)
-                        driver.find_element_by_id(analysis_service_title).click()
-                        time.sleep(3)
-                        driver.find_element_by_name('save_button').click()
-                        time.sleep(3)
-                        #print (driver.current_url)
-                        temp = driver.find_element_by_id("status_message").text
-                        sample_id = temp[7:-26]
-                        driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/" + sample_id + "/base_view")
-                        print (driver.current_url)
-                        driver.find_element_by_id("plone-contentmenu-workflow").click()
-                        driver.find_element_by_id("workflow-transition-receive").click()
-                        driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/" + sample_id + "/base_view")
-                        print(driver.find_element_by_id("archetypes-fieldname-Contact").get_attribute("data-uid"))
-                        response2 = session.get(super().generateAPIUrl() + "analysis/" + requests.utils.quote(driver.find_element_by_id("archetypes-fieldname-Contact").get_attribute("data-uid")), headers = headers)
-                        vv = "Result." + response2.json()["items"][0]["Analyses"][0]["uid"] + ":records"
-                        driver.find_element_by_name(vv).send_keys(resultEntity.result_val)
-                        time.sleep(1)
-                        driver.find_element_by_id("ajax_save_selection").click()
-                        time.sleep(2)
-                        driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/" + sample_id + "/base_view")
-                        driver.find_element_by_name("uids:list").click()
-                        time.sleep(1)
-                        driver.find_element_by_id("submit_transition").click()
-                        time.sleep(1)
-                        driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/" + sample_id + "/base_view")
-                        driver.find_element_by_name("uids:list").click()
-                        time.sleep(1)
-                        driver.find_element_by_id("verify_transition").click()
-                        time.sleep(1)
-                        driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/" + sample_id + "/base_view")
-                        time.sleep(1)
-                        driver.find_element_by_id("plone-contentmenu-workflow").click()
-                        driver.find_element_by_id("workflow-transition-publish").click()
-                        time.sleep(1)
-                        driver.get(driver.current_url)
-                        time.sleep(3)
-                        driver.find_element_by_name("save").click()
-                        time.sleep(3)
+                            driver.find_element_by_id(response2.json()["items"][0]["id"]).click()
+                            response2 = session.get(super().generateAPIUrl() + "analysisservice?title=" + requests.utils.quote(testsToShowHistory[resultEntity.reststname].TstName), headers = headers)
+                            analysis_service_title = 'cb_0_' + response2.json()["items"][0]["uid"]
+                            print (analysis_service_title)
+                            driver.find_element_by_id(analysis_service_title).click()
+                            time.sleep(3)
+                            driver.find_element_by_name('save_button').click()
+                            time.sleep(3)
+                            temp = driver.find_element_by_id("status_message").text
+                            sample_id = temp[7:-26]
+                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/" + sample_id + "/base_view")
+                            print (driver.current_url)
+                            driver.find_element_by_id("plone-contentmenu-workflow").click()
+                            driver.find_element_by_id("workflow-transition-receive").click()
+                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/" + sample_id + "/base_view")
+                            print(driver.find_element_by_id("archetypes-fieldname-Contact").get_attribute("data-uid"))
+                            response2 = session.get(super().generateAPIUrl() + "analysis/" + requests.utils.quote(driver.find_element_by_id("archetypes-fieldname-Contact").get_attribute("data-uid")), headers = headers)
+                            vv = "Result." + response2.json()["items"][0]["Analyses"][0]["uid"] + ":records"
+                            driver.find_element_by_name(vv).send_keys(resultEntity.result_val)
+                            time.sleep(1)
+                            driver.find_element_by_id("ajax_save_selection").click()
+                            time.sleep(2)
+                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/" + sample_id + "/base_view")
+                            driver.find_element_by_name("uids:list").click()
+                            time.sleep(1)
+                            driver.find_element_by_id("submit_transition").click()
+                            time.sleep(1)
+                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/" + sample_id + "/base_view")
+                            driver.find_element_by_name("uids:list").click()
+                            time.sleep(1)
+                            driver.find_element_by_id("verify_transition").click()
+                            time.sleep(1)
+                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/" + sample_id + "/base_view")
+                            time.sleep(1)
+                            driver.find_element_by_id("plone-contentmenu-workflow").click()
+                            driver.find_element_by_id("workflow-transition-publish").click()
+                            time.sleep(1)
+                            driver.get(driver.current_url)
+                            time.sleep(3)
+                            driver.find_element_by_name("save").click()
+                            time.sleep(3)
+                except Exception as e:
+                    message = "Unknown Exception"
+                    if hasattr(e, 'message'):
+                       message = e.message
+                    Utility.write_log("PatientService", "Exception adding patient history number(" + str(pulledPatientEntity.PatNumber) +") :" + message)
+                    continue

@@ -226,7 +226,7 @@ class PatientDAO(AbstractDAO):
     def __init__(self, flims_configurations):
         super().__init__(flims_configurations)
 
-    def searchPatients(self, criteriaDictionary = None):
+    def searchPatients(self, last_patient_id, criteriaDictionary = None):
         patientsList = []
         if (self._database_engine == "MSSQLServer2019"):
             con = super().getConnection()
@@ -234,8 +234,8 @@ class PatientDAO(AbstractDAO):
             selectStatement = "SELECT ID, PatNumber, PatName, PatarName, FORMAT (PatDateOfBirth, 'yyyy-MM-dd') as PatDateOfBirth, PatSex, PatTelephone, PatMobile, PatEmail, PatMaritalStatus FROM IntegratedLAB.dbo.Patient WHERE 1 = 1 "
             if criteriaDictionary != None:
                 selectStatement += super().generateWhereClause((PulledPatientEntity()).getCriteriaDictionary(), criteriaDictionary)
-            selectStatement += " ORDER BY PatNumber"
-            selectStatement += " OFFSET 60 ROWS FETCH NEXT 7000 ROWS ONLY;"
+            selectStatement += " and PatNumber > " + str(last_patient_id)
+            selectStatement += " ORDER BY PatNumber;"
             cursor.execute(selectStatement)
             row = cursor.fetchone()
             while row:

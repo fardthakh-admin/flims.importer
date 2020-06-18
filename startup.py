@@ -5,6 +5,7 @@ from flims_importer_services import LabDepartmentService, SampleTypeService, Ana
 #from dao import PulledDAO
 #from flims_entities import AnalysisCategoryEntity, LabDepartmentEntity
 
+last_patient_id = 1
 database_engines = {
     "1" : "MSSQLServer2019",
     "2" : "MySQL"
@@ -15,7 +16,7 @@ importer_configurations = {
         "database_host_url" : "localhost",
         "database_port" : "1433",
         "database_username" : "sa",
-        "database_password" : "sa",
+        "database_password" : "RedPill@mssql2019",
         "database_name" : "IntegratedLAB",
         "database_schema" : "dao"
     },
@@ -40,25 +41,34 @@ def config_flims(operation, **kwargs):
     def setDatabaseSettings():
         print ("Database Connection Settings:")
         for database_engine in database_engines.keys():
-            print (database_engine, ": ", database_engines[command_key]['?'])
+            print (database_engine, ": ", database_engines[database_engine])
         print ("\n\n")
         database_engine_input = input('Database: ')
-        while database_engines[database_engine] == None:
+        while database_engine_input not in database_engines.keys():
             print ("Wrong choice, enter again: ")
             database_engine_input = input('Enter choice: ')
-        importer_configurations["database_configurations"]["database_engine"] = database_engine_input
-        importer_configurations["database_configurations"]["database_host_url"] = input('Host(URL): ')
-        importer_configurations["database_configurations"]["database_port"] = input('Port: ')
-        importer_configurations["database_configurations"]["database_username"] = input('Username: ')
-        importer_configurations["database_configurations"]["database_password"] = input('Password: ')
-        importer_configurations["database_configurations"]["database_name"] = input('Database name: ')
-        importer_configurations["database_configurations"]["database_schema"] = input('Database schema name: ')
+        importer_configurations["database_configurations"]["database_engine"] = database_engines[database_engine_input]
+        temp = input('Host(URL): or press enter to leave it unchanged (cuurent : ' + importer_configurations["database_configurations"]["database_host_url"] + ')')
+        importer_configurations["database_configurations"]["database_host_url"] = temp if temp != "" else importer_configurations["database_configurations"]["database_host_url"]
+        temp = input('Port: or press enter to leave it unchanged (cuurent : ' + importer_configurations["database_configurations"]["database_port"] + ')')
+        importer_configurations["database_configurations"]["database_port"] = temp if temp != "" else importer_configurations["database_configurations"]["database_port"]
+        temp = input('Username: or press enter to leave it unchanged (cuurent : ' + importer_configurations["database_configurations"]["database_username"] + ')')
+        importer_configurations["database_configurations"]["database_username"] = temp if temp != "" else importer_configurations["database_configurations"]["database_username"]
+        temp = input('Password: or press enter to leave it unchanged (cuurent : ' + importer_configurations["database_configurations"]["database_password"] + ')')
+        importer_configurations["database_configurations"]["database_password"] = temp if temp != "" else importer_configurations["database_configurations"]["database_password"]
+        temp = input('Database name: or press enter to leave it unchanged (cuurent : ' + importer_configurations["database_configurations"]["database_name"] + ')')
+        importer_configurations["database_configurations"]["database_name"] = temp if temp != "" else importer_configurations["database_configurations"]["database_name"]
+        temp = input('Database schema name: or press enter to leave it unchanged (cuurent : ' + importer_configurations["database_configurations"]["database_schema"] + ')')
+        importer_configurations["database_configurations"]["database_schema"] = temp if temp != "" else importer_configurations["database_configurations"]["database_schema"]
 
     def setFlimsServerConfigurations():
         print ("FLIMS System Server Config:")
-        importer_configurations["flims_configurations"]["server_ip"] = input('Server IP: ')
-        importer_configurations["flims_configurations"]["server_port"] = input('Server Port: ')
-        importer_configurations["flims_configurations"]["server_path"] = input('FLIMS web path: ')
+        temp = input('Server IP: or press enter to leave it unchanged (cuurent : ' + importer_configurations["flims_configurations"]["server_ip"] + ')')
+        importer_configurations["flims_configurations"]["server_ip"] = temp if temp != "" else importer_configurations["flims_configurations"]["server_ip"]
+        temp = input('Server Port: or press enter to leave it unchanged (cuurent : ' + importer_configurations["flims_configurations"]["server_port"] + ')')
+        importer_configurations["flims_configurations"]["server_port"] = temp if temp != "" else importer_configurations["flims_configurations"]["server_port"]
+        temp = input('Server Path: or press enter to leave it unchanged (cuurent : ' + importer_configurations["flims_configurations"]["server_path"] + ')')
+        importer_configurations["flims_configurations"]["server_path"] = temp if temp != "" else importer_configurations["flims_configurations"]["server_path"]
 
     def setFlimsUserAccount():
         print ("FLIMS User Credentials:")
@@ -70,6 +80,9 @@ def config_flims(operation, **kwargs):
 
     def setLabContactManager():
         importer_configurations["flims_configurations"]["lab_contact_manager"] = input('Enter LabContact Manager Full Name: ')
+
+    def set_last_patient_id():
+        last_patient_id = input("Enter the last patient number before interruption: ")
 
     def printConfigurations():
         print("========Importer Configurations=========")
@@ -89,11 +102,12 @@ def config_flims(operation, **kwargs):
     config_type = {
         'database_engine' : set_database_engine,
         'database_connection_settings' : setDatabaseSettings,
-        'flims_server_configurations' : setFlimsServerConfigurations,
+        'flims_system_server_configurations' : setFlimsServerConfigurations,
         'flims_user_credentials' : setFlimsUserAccount,
         'lab_contact_manager' : setLabContactManager,
         'client_name' : setClientName,
-        'get_flims_configurations' : printConfigurations
+        'get_flims_configurations' : printConfigurations,
+        'last_patient_id' : set_last_patient_id
     }[operation](**kwargs)        
 
 def flims_services(operation, **kwargs):
@@ -131,14 +145,8 @@ def flims_services(operation, **kwargs):
     def importPatients():
         print ("Importing Patients Started...\n")
         patientService = PatientService(importer_configurations)
-        patientService.importPatients()
+        patientService.importPatients(last_patient_id)
         print ("Importing Patients Finished...\n")
-
-    def importAnalysisRequests():
-        print ("Importing Analysis Requests Started...\n")
-        analysisRequestService = AnalysisRequestService(importer_configurations)
-        analysisRequestService.importAnalysisRequests()
-        print ("Importing Analysis Requests Finished...\n")
 
     # map the inputs to the function blocks
     services = {
@@ -147,8 +155,7 @@ def flims_services(operation, **kwargs):
         'import_analysis_categories' : importAnalysisCategories,
         'import_analysis_services' : importAnalysisServices,
         'import_analysis_specifications' : importAnalysisSpecifications,
-        'import_patients' : importPatients,
-        'import_analysis_requests' : importAnalysisRequests
+        'import_patients' : importPatients
     }[operation]()
 
 commands_list = {
@@ -191,10 +198,18 @@ commands_list = {
                 }
             },
             '5' : {
-                '?' : "Print FLIMS Configurations",
+                '?' : "Set Patient Number Before Interruption",
                 'has_function' : True,
                 'function' : config_flims,
                 'args' : {'operation' : "get_flims_configurations"},
+                'sub_command' :{
+                }
+            },            
+            '6' : {
+                '?' : "Print FLIMS Configurations",
+                'has_function' : True,
+                'function' : config_flims,
+                'args' : {'operation' : "last_patient_id"},
                 'sub_command' :{
                 }
             },
@@ -253,14 +268,6 @@ commands_list = {
         'has_function' : True,
         'function' : flims_services,
         'args' : {'operation' : "import_patients"},
-        'sub_command' :{
-        }
-    },
-    '8' : {
-        '?' : "Import Analysis Requests",
-        'has_function' : True,
-        'function' : flims_services,
-        'args' : {'operation' : "import_analysis_requests"},
         'sub_command' :{
         }
     },
