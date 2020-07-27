@@ -8,7 +8,6 @@ from pulled_entities import DepartmentEntity, TestCategoryEntity, TestEntity, Te
 # server = 'myserver,port' # to specify an alternate port
 
 #Sample select query
-
 from abc import ABC, abstractmethod
 
 class AbstractDAO(ABC):
