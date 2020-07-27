@@ -34,6 +34,8 @@ class Utility:
         return age
 
     def write_log(service_name, log):
+        print('service_name : ',service_name)
+        print('log : ',log)
         file = open("log/" + service_name + ".txt", "a")
         file.write("\n")
         file.write(log)

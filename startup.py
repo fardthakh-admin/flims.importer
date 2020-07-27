@@ -16,18 +16,19 @@ importer_configurations = {
         "database_host_url" : "localhost",
         "database_port" : "1433",
         "database_username" : "sa",
-        "database_password" : "abcl2019",
+        "database_password" : "laith@31",
         "database_name" : "IntegratedLAB",
         "database_schema" : "dao"
     },
     "flims_configurations" : {
         "lab_contact_manager" : "Ayman Abu Awwad",
         "client_name" : "GenoLab",
-        "server_ip" : "localhost",
+        "import_date" : "2018-01-01",
+        "server_ip" : "192.168.1.13",
         "server_port" : "8080",
         "server_path" : "flims",
         "flims_account_username" : "admin",
-        "flims_account_password" : "admin"
+        "flims_account_password" : "Geno_Flims@Fard"
     }
 }
 
@@ -77,6 +78,9 @@ def config_flims(operation, **kwargs):
 
     def setClientName():
         importer_configurations["flims_configurations"]["client_name"] = input('Enter Client Name: ')
+    def setLastImportDate():
+
+        importer_configurations["flims_configurations"]["import_date"] = input('Enter Last Import Date (YYYY-MM-DD) : ')
 
     def setLabContactManager():
         importer_configurations["flims_configurations"]["lab_contact_manager"] = input('Enter LabContact Manager Full Name: ')
@@ -106,6 +110,7 @@ def config_flims(operation, **kwargs):
         'flims_user_credentials' : setFlimsUserAccount,
         'lab_contact_manager' : setLabContactManager,
         'client_name' : setClientName,
+        'import_date' : setLastImportDate,
         'get_flims_configurations' : printConfigurations,
         'last_patient_id' : set_last_patient_id
     }[operation](**kwargs)        
@@ -189,7 +194,15 @@ commands_list = {
                 'sub_command' :{
                 }
             },
-            '4' : {
+            '4': {
+                '?': "Set Last Import Date",
+                'has_function': True,
+                'function': config_flims,
+                'args': {'operation': "import_date"},
+                'sub_command': {
+                }
+            },
+            '5' : {
                 '?' : "Set LabContact Manager",
                 'has_function' : True,
                 'function' : config_flims,
@@ -197,7 +210,7 @@ commands_list = {
                 'sub_command' :{
                 }
             },
-            '5' : {
+            '6' : {
                 '?' : "Set Patient Number Before Interruption",
                 'has_function' : True,
                 'function' : config_flims,
@@ -205,7 +218,7 @@ commands_list = {
                 'sub_command' :{
                 }
             },            
-            '6' : {
+            '7' : {
                 '?' : "Print FLIMS Configurations",
                 'has_function' : True,
                 'function' : config_flims,

@@ -2,22 +2,26 @@ from abc import ABC, abstractmethod
 import requests
 import json
 import mechanize
-import pandas as pd
+# import pandas as pd
 import xlsxwriter
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
+# from selenium.webdriver.support.ui import WebDriverWait
 import re
 import csv
 import time
+
 from utility import Utility
-from flims_entities import LabDepartmentEntity, SampleTypeEntity, AnalysisCategoryEntity, AnalysisServiceEntity, DynamicAnalysisSpecEntity, PatientEntity, AnalysisRequestEntity
-from pulled_entities import DepartmentEntity, TestCategoryEntity, TestEntity, TestResultTypeEntity, TestPriceEntity, PulledPatientEntity, TransAmountDetailsEntity, ResultEntity
-from pulled_dao import DepartmentDAO, TestCategoryDAO, LabTestDAO, TestResultTypeDAO, TestPriceDAO, PatientDAO, TransAmountDetailsDAO, ResultDAO
+from flims_entities import LabDepartmentEntity, SampleTypeEntity, AnalysisCategoryEntity, AnalysisServiceEntity, \
+    DynamicAnalysisSpecEntity, PatientEntity, AnalysisRequestEntity
+from pulled_entities import DepartmentEntity, TestCategoryEntity, TestEntity, TestResultTypeEntity, TestPriceEntity, \
+    PulledPatientEntity, TransAmountDetailsEntity, ResultEntity
+from pulled_dao import DepartmentDAO, TestCategoryDAO, LabTestDAO, TestResultTypeDAO, TestPriceDAO, PatientDAO, \
+    TransAmountDetailsDAO, ResultDAO
+
 
 class AbstractService(ABC):
-
     __slots__ = ('_importer_configurations')
 
     @abstractmethod
@@ -26,15 +30,17 @@ class AbstractService(ABC):
 
     def generateAPIUrl(self):
         flims_configurations = self._importer_configurations["flims_configurations"]
-        return "http://" + flims_configurations["server_ip"] + ":" + flims_configurations["server_port"] + "/" + flims_configurations["server_path"] + "/@@API/senaite/v1/"
+        return "http://" + flims_configurations["server_ip"] + ":" + flims_configurations["server_port"] + "/" + \
+               flims_configurations["server_path"] + "/@@API/senaite/v1/"
 
     def generateBrowserUrl(self):
         flims_configurations = self._importer_configurations["flims_configurations"]
-        return "http://" + flims_configurations["server_ip"] + ":" + flims_configurations["server_port"] + "/" + flims_configurations["server_path"] + "/"
+        return "http://" + flims_configurations["server_ip"] + ":" + flims_configurations["server_port"] + "/" + \
+               flims_configurations["server_path"] + "/"
 
     def loginByAPI(self):
         session = requests.Session()
-        data = {"__ac_name": "admin", "__ac_password": "admin"}
+        data = {"__ac_name": "admin", "__ac_password": "Geno_Flims@Fard"}
         session.post(self.generateAPIUrl() + "users/login", data).text
         return session
 
@@ -42,27 +48,28 @@ class AbstractService(ABC):
         url = self.generateBrowserUrl() + "/login_form"
         browser = mechanize.Browser()
         browser._factory.is_html = True
-        browser.set_handle_robots(False) # ignore robots
+        browser.set_handle_robots(False)  # ignore robots
         browser.open(url)
         browser.select_form(id="login_form")
         browser["__ac_name"] = "admin"
-        browser["__ac_password"] = "admin"
+        browser["__ac_password"] = "Geno_Flims@Fard"
         browser.submit()
         return browser
 
     def loginBySeleniumBrowser(self):
         WINDOW_SIZE = "1920,1080"
         chrome_options = Options()
-        #chrome_options.add_argument("--headless")
+        # chrome_options.add_argument("--headless")
         chrome_options.add_argument("--window-size=%s" % WINDOW_SIZE)
         driver = webdriver.Chrome(chrome_options=chrome_options)
         driver.implicitly_wait(3)
         driver.get(self.generateBrowserUrl() + "/login_form")
         driver.find_element_by_id("__ac_name").send_keys("admin")
-        driver.find_element_by_id("__ac_password").send_keys("admin")
+        driver.find_element_by_id("__ac_password").send_keys("Geno_Flims@Fard")
         driver.find_element_by_name("submit").click()
 
         return driver
+
 
 class LabDepartmentService(AbstractService):
 
@@ -76,15 +83,20 @@ class LabDepartmentService(AbstractService):
         departmentEntityForSearch = DepartmentEntity()
         departmentsList = departmentDAO.searchDepartment(departmentEntityForSearch.getCriteriaDictionary())
         for departmentEntity in departmentsList:
-            response = session.get(super().generateAPIUrl() +  "department?title=" + requests.utils.quote(departmentEntity.depname), headers = headers)
+            response = session.get(
+                super().generateAPIUrl() + "department?title=" + requests.utils.quote(departmentEntity.depname),
+                headers=headers)
             if len(response.json()["items"]) == 0:
                 labDepartmentEntity = LabDepartmentEntity()
                 labDepartmentEntity.title = departmentEntity.depname
-                labDepartmentEntity.Manager.title = self._importer_configurations["flims_configurations"]["lab_contact_manager"]
+                labDepartmentEntity.Manager.title = self._importer_configurations["flims_configurations"][
+                    "lab_contact_manager"]
                 print(labDepartmentEntity.as_dictionary())
-                session.post(super().generateAPIUrl() + "create", data = json.dumps(labDepartmentEntity.as_dictionary()), headers = headers)
+                session.post(super().generateAPIUrl() + "create", data=json.dumps(labDepartmentEntity.as_dictionary()),
+                             headers=headers)
             else:
                 print("Error: Can't add department ", departmentEntity.depname, ", it is already exist.")
+
 
 class DynamicAnalysisSpecService(AbstractService):
 
@@ -105,12 +117,16 @@ class DynamicAnalysisSpecService(AbstractService):
                     sampleTypeEntity.Prefix = sampleTypeEntity.title
                     sampleTypeEntity.MinimumVolume = "0 ml"
                     sampleTypeEntity.RetentionPeriod.days = 1
-                    response = session.get(super().generateAPIUrl() +  "sampletype?title=" + requests.utils.quote(sampleTypeEntity.title), headers = headers)
+                    response = session.get(
+                        super().generateAPIUrl() + "sampletype?title=" + requests.utils.quote(sampleTypeEntity.title),
+                        headers=headers)
                     if len(response.json()["items"]) == 0:
-                        session.post(super().generateAPIUrl() + "create", data = json.dumps(sampleTypeEntity.as_dictionary()), headers = headers)
+                        session.post(super().generateAPIUrl() + "create",
+                                     data=json.dumps(sampleTypeEntity.as_dictionary()), headers=headers)
                     else:
                         print("Error: Can't add sample type ", sampleTypeEntity.title, ", it is already exist.")
                 line_count += 1
+
 
 class SampleTypeService(AbstractService):
 
@@ -131,12 +147,16 @@ class SampleTypeService(AbstractService):
                     sampleTypeEntity.Prefix = sampleTypeEntity.title
                     sampleTypeEntity.MinimumVolume = "0 ml"
                     sampleTypeEntity.RetentionPeriod.days = 1
-                    response = session.get(super().generateAPIUrl() +  "sampletype?title=" + requests.utils.quote(sampleTypeEntity.title), headers = headers)
+                    response = session.get(
+                        super().generateAPIUrl() + "sampletype?title=" + requests.utils.quote(sampleTypeEntity.title),
+                        headers=headers)
                     if len(response.json()["items"]) == 0:
-                        session.post(super().generateAPIUrl() + "create", data = json.dumps(sampleTypeEntity.as_dictionary()), headers = headers)
+                        session.post(super().generateAPIUrl() + "create",
+                                     data=json.dumps(sampleTypeEntity.as_dictionary()), headers=headers)
                     else:
                         print("Error: Can't add sample type ", sampleTypeEntity.title, ", it is already exist.")
                 line_count += 1
+
 
 class AnalysisCategoryService(AbstractService):
 
@@ -150,14 +170,18 @@ class AnalysisCategoryService(AbstractService):
         testCategoryEntityForSearch = TestCategoryEntity()
         testCategoriesList = testCategoryDAO.searchTestCategory(testCategoryEntityForSearch.getCriteriaDictionary())
         for testCategoryEntity in testCategoriesList:
-            response = session.get(super().generateAPIUrl() +  "analysiscategory?title=" + requests.utils.quote(testCategoryEntity.CatName), headers = headers)
+            response = session.get(
+                super().generateAPIUrl() + "analysiscategory?title=" + requests.utils.quote(testCategoryEntity.CatName),
+                headers=headers)
             if len(response.json()["items"]) == 0:
                 analysisCategoryEntity = AnalysisCategoryEntity()
                 analysisCategoryEntity.title = testCategoryEntity.CatName
                 analysisCategoryEntity.Department.title = testCategoryEntity.CatName
-                session.post(super().generateAPIUrl() + "create", data = json.dumps(analysisCategoryEntity.as_dictionary()), headers = headers)
+                session.post(super().generateAPIUrl() + "create",
+                             data=json.dumps(analysisCategoryEntity.as_dictionary()), headers=headers)
             else:
                 print("Error: Can't add analysis category ", testCategoryEntity.CatName, ", it is already exist.")
+
 
 class AnalysisServiceService(AbstractService):
 
@@ -181,17 +205,21 @@ class AnalysisServiceService(AbstractService):
             testsList = labTestDAO.searchTests(testEntityForSearch.getCriteriaDictionary())
             for testEntity in testsList:
                 testResultTypeEntityForSearch.testnumber = testEntity.testnumber
-                testResultTypesList = testResultTypeDAO.searchTestsResultTypes(testResultTypeEntityForSearch.getCriteriaDictionary())
+                testResultTypesList = testResultTypeDAO.searchTestsResultTypes(
+                    testResultTypeEntityForSearch.getCriteriaDictionary())
                 testPriceEntityForSearch.Idno = testEntity.testnumber
-                if(testEntity.testnumber < 200):
-                    print (testEntity.getCriteriaDictionary())
+                if (testEntity.testnumber < 200):
+                    print(testEntity.getCriteriaDictionary())
                 testsPricesList = testPriceDAO.searchTestPrices(testPriceEntityForSearch.getCriteriaDictionary())
                 #
                 analysisServiceEntity = AnalysisServiceEntity()
                 analysisServiceEntity.title = testEntity.TstName
                 analysisServiceEntity.description = ""
                 analysisServiceEntity.Keyword = testEntity.tstshort
-                response = session.get(super().generateAPIUrl() +  "analysiscategory?title=" + requests.utils.quote(testCategoryEntity.CatName.strip()), headers = headers)
+                response = session.get(super().generateAPIUrl() + "analysiscategory?title=" + requests.utils.quote(
+                    testCategoryEntity.CatName.strip()), headers=headers)
+                print(super().generateAPIUrl() + "analysiscategory?title=")
+                print("----------------------------------------------------------------")
                 if len(response.json()["items"]) != 0:
                     analysisServiceEntity.Category = response.json()["items"][0]["uid"]
                 if len(testResultTypesList) == 0:
@@ -220,8 +248,10 @@ class AnalysisServiceService(AbstractService):
                 analysisServiceEntity.MaxTimeAllowed.hours = testEntity.tstHrDuration.strip() if testEntity.tstHrDuration is not None else "0"
                 analysisServiceEntity.Factor = 1
                 print(analysisServiceEntity.as_dictionary())
-                z = session.post(super().generateAPIUrl() + "create", data = json.dumps(analysisServiceEntity.as_dictionary()), headers = headers)
+                z = session.post(super().generateAPIUrl() + "create",
+                                 data=json.dumps(analysisServiceEntity.as_dictionary()), headers=headers)
                 print(z.text)
+
 
 class AnalysisSpecificationService(AbstractService):
 
@@ -245,7 +275,8 @@ class AnalysisSpecificationService(AbstractService):
             testsList = labTestDAO.searchTests(testEntityForSearch.getCriteriaDictionary())
             for testEntity in testsList:
                 testResultTypeEntityForSearch.testnumber = testEntity.testnumber
-                testResultTypesList = testResultTypeDAO.searchTestsResultTypes(testResultTypeEntityForSearch.getCriteriaDictionary())
+                testResultTypesList = testResultTypeDAO.searchTestsResultTypes(
+                    testResultTypeEntityForSearch.getCriteriaDictionary())
                 #
                 if testEntity.TstSpecimal1 is not None and testEntity.TstSpecimal1 != "":
                     if testEntity.TstSpecimal1 not in dynamic_spec_dictionary_by_gender_age.keys():
@@ -276,7 +307,8 @@ class AnalysisSpecificationService(AbstractService):
                                 minimum = 0
                                 maximum = 0
                                 if testResultTypeEntity.TstNormalFrom is not None and testResultTypeEntity.TstNormalFrom != "":
-                                    testResultTypeEntity.TstNormalFrom = testResultTypeEntity.TstNormalFrom.replace(',', '')
+                                    testResultTypeEntity.TstNormalFrom = testResultTypeEntity.TstNormalFrom.replace(',',
+                                                                                                                    '')
                                     if testResultTypeEntity.TstNormalFrom.find("/") != -1:
                                         numerator = testResultTypeEntity.TstNormalFrom.split("/")[0]
                                         denominator = testResultTypeEntity.TstNormalFrom.split("/")[1]
@@ -292,7 +324,7 @@ class AnalysisSpecificationService(AbstractService):
                                         maximum = float(numerator) / float(denominator)
                                     elif not re.search("[A-Za-z<>:.].*", testResultTypeEntity.TstNormalTo):
                                         maximum = float(testResultTypeEntity.TstNormalTo)
-                            
+
                                 gendersList = []
                                 if testResultTypeEntity.Tstgender == "Both":
                                     gendersList = ["Male", "Female"]
@@ -302,15 +334,23 @@ class AnalysisSpecificationService(AbstractService):
                                     gendersList = ["Female"]
 
                                 for gender in gendersList:
-                                    key = str(testEntity.tstshort) + gender + str(age_from) + str(age_to) + str(minimum) + str(maximum)
+                                    key = str(testEntity.tstshort) + gender + str(age_from) + str(age_to) + str(
+                                        minimum) + str(maximum)
                                     if key not in dynamic_spec_dictionary_by_gender_age[testEntity.TstSpecimal1].keys():
-                                        dynamic_spec_dictionary_by_gender_age[testEntity.TstSpecimal1][key] = DynamicAnalysisSpecEntity()
-                                        dynamic_spec_dictionary_by_gender_age[testEntity.TstSpecimal1][key].Keyword = testEntity.tstshort
-                                        dynamic_spec_dictionary_by_gender_age[testEntity.TstSpecimal1][key].Gender = gender
-                                        dynamic_spec_dictionary_by_gender_age[testEntity.TstSpecimal1][key].Age_From = age_from
-                                        dynamic_spec_dictionary_by_gender_age[testEntity.TstSpecimal1][key].Age_To = age_to
-                                        dynamic_spec_dictionary_by_gender_age[testEntity.TstSpecimal1][key].min = minimum
-                                        dynamic_spec_dictionary_by_gender_age[testEntity.TstSpecimal1][key].max = maximum
+                                        dynamic_spec_dictionary_by_gender_age[testEntity.TstSpecimal1][
+                                            key] = DynamicAnalysisSpecEntity()
+                                        dynamic_spec_dictionary_by_gender_age[testEntity.TstSpecimal1][
+                                            key].Keyword = testEntity.tstshort
+                                        dynamic_spec_dictionary_by_gender_age[testEntity.TstSpecimal1][
+                                            key].Gender = gender
+                                        dynamic_spec_dictionary_by_gender_age[testEntity.TstSpecimal1][
+                                            key].Age_From = age_from
+                                        dynamic_spec_dictionary_by_gender_age[testEntity.TstSpecimal1][
+                                            key].Age_To = age_to
+                                        dynamic_spec_dictionary_by_gender_age[testEntity.TstSpecimal1][
+                                            key].min = minimum
+                                        dynamic_spec_dictionary_by_gender_age[testEntity.TstSpecimal1][
+                                            key].max = maximum
 
                             elif testResultTypeEntity.Tstgender == "Spetial":
                                 continue
@@ -318,7 +358,8 @@ class AnalysisSpecificationService(AbstractService):
         print("Note: You will create Dynamic Analysis Specification for each sample type.")
         print("Note: Use the link below to create each Dynamic Analysis Specifications and upload its file.")
         print(self.generateBrowserUrl() + "bika_setup/dynamic_analysisspecs/++add++DynamicAnalysisSpec")
-        print("Note: Consider naming each Dynamic Analysis Specification in a convenient way, such as {(SampleTypeName) DAS}")                                
+        print(
+            "Note: Consider naming each Dynamic Analysis Specification in a convenient way, such as {(SampleTypeName) DAS}")
         csvHeader = ["Keyword", "Gender", "Age_From", "Age_To", "min", "max"]
         for key in dynamic_spec_dictionary_by_gender_age:
             file_name = key.replace(',', '')
@@ -337,6 +378,7 @@ class AnalysisSpecificationService(AbstractService):
             input("Upload file (" + file_name + ") then press Enter to continue.")
         print("All Dynamic Analysis Specification files uploaded.")
 
+
 class PatientService(AbstractService):
 
     def __init__(self, importer_configurations):
@@ -345,10 +387,16 @@ class PatientService(AbstractService):
     def importPatients(self, last_patient_id):
         session = super().loginByAPI()
         headers = {'User-Agent': 'Mozilla/5.0', "content-type": "application/json"}
-        response = session.get(super().generateAPIUrl() + "client?title=" + self._importer_configurations["flims_configurations"]["client_name"], headers = headers)
+        response = session.get(
+            super().generateAPIUrl() + "client?title=" + self._importer_configurations["flims_configurations"][
+                "client_name"], headers=headers)
+        print('response : ', response.json()["items"])
+        print('response : ',
+              super().generateAPIUrl() + "client?title=" + self._importer_configurations["flims_configurations"][
+                  "client_name"])
         if response.json()["items"][0] == 0:
-            print("Error: Client ", importer_configurations["client_name"], " was not found. Please be sure to create one or check the spelling. \
-                \n Client is required to assign patients to it. Importing patients process will be terminated." )
+            print("Error: Client ", self._importer_configurations["client_name"], " was not found. Please be sure to create one or check the spelling. \
+                \n Client is required to assign patients to it. Importing patients process will be terminated.")
         else:
             testCategoryDAO = TestCategoryDAO(self._importer_configurations["database_configurations"])
             testCategoryEntityForSearch = TestCategoryEntity()
@@ -357,7 +405,7 @@ class PatientService(AbstractService):
             for testCategoryEntity in testCategoriesList:
                 if testCategoryEntity not in testCategoriesMapByID:
                     testCategoriesMapByID[testCategoryEntity.CatNumber] = testCategoryEntity
-            print (testCategoriesMapByID)
+            print(testCategoriesMapByID)
             labTestDAO = LabTestDAO(self._importer_configurations["database_configurations"])
             testEntityForSearch = TestEntity()
             testEntityForSearch.ShowPreviousresult = 1
@@ -366,7 +414,7 @@ class PatientService(AbstractService):
             for testEntity in testsList:
                 if testEntity.tstshort not in testsToShowHistory:
                     testsToShowHistory[testEntity.tstshort] = testEntity
-            print (len(testsToShowHistory))
+            print(len(testsToShowHistory))
             patientDAO = PatientDAO(self._importer_configurations["database_configurations"])
             transAmountDetailsDAO = TransAmountDetailsDAO(self._importer_configurations["database_configurations"])
             resultDAO = ResultDAO(self._importer_configurations["database_configurations"])
@@ -376,7 +424,8 @@ class PatientService(AbstractService):
 
                 patientEntity = PatientEntity()
                 try:
-                    patientEntity.clientPatientID = str(patientEntity.clientPatientID) + "" + str(pulledPatientEntity.PatNumber)
+                    patientEntity.clientPatientID = str(patientEntity.clientPatientID) + "" + str(
+                        pulledPatientEntity.PatNumber)
                     full_name = ""
                     if pulledPatientEntity.PatarName == '':
                         full_name = pulledPatientEntity.PatName.split()
@@ -422,15 +471,17 @@ class PatientService(AbstractService):
 
                     transAmountDetailsEntityForSearch = TransAmountDetailsEntity()
                     transAmountDetailsEntityForSearch.pat_id = pulledPatientEntity.PatNumber
-                    transAmountDetailsList = transAmountDetailsDAO.searchTransAmountDetails(transAmountDetailsEntityForSearch.getCriteriaDictionary())
+                    transAmountDetailsList = transAmountDetailsDAO.searchTransAmountDetails(
+                        transAmountDetailsEntityForSearch.getCriteriaDictionary())
                     for transAmountDetailsEntity in transAmountDetailsList:
                         if patientEntity.PatientCoverageRate < transAmountDetailsEntity.PatCoverage:
                             patientEntity.PatientCoverageRate = transAmountDetailsEntity.PatCoverage
                 except Exception as e:
                     message = "Unknown Exception"
                     if hasattr(e, 'message'):
-                       message = e.message
-                    Utility.write_log("PatientService", "Exception reading patient number(" + str(pulledPatientEntity.PatNumber) +") :" + message)
+                        message = e.message
+                    Utility.write_log("PatientService", "Exception reading patient number(" + str(
+                        pulledPatientEntity.PatNumber) + ") :" + message)
                     continue
                 try:
                     driver = super().loginBySeleniumBrowser()
@@ -463,8 +514,9 @@ class PatientService(AbstractService):
                 except Exception as e:
                     message = "Unknown Exception"
                     if hasattr(e, 'message'):
-                       message = e.message
-                    Utility.write_log("PatientService", "Exception adding patient number(" + str(pulledPatientEntity.PatNumber) +") :" + message)
+                        message = e.message
+                    Utility.write_log("PatientService", "Exception adding patient number(" + str(
+                        pulledPatientEntity.PatNumber) + ") :" + message)
                     continue
                 try:
                     for transAmountDetailsEntity in transAmountDetailsList:
@@ -474,17 +526,19 @@ class PatientService(AbstractService):
                         for resultEntity in resultsList:
                             analysisRequestEntity = AnalysisRequestEntity()
                             analysisRequestEntity.Client = patientEntity.primaryReferrer
-                            analysisRequestEntity.Contact = self._importer_configurations["flims_configurations"]["lab_contact_manager"]
+                            analysisRequestEntity.Contact = self._importer_configurations["flims_configurations"][
+                                "lab_contact_manager"]
                             if pulledPatientEntity.PatarName == '':
                                 analysisRequestEntity.Patient = pulledPatientEntity.PatName
                             else:
                                 analysisRequestEntity.Patient = pulledPatientEntity.PatarName
                             analysisRequestEntity.DateSampled = transAmountDetailsEntity.datee
-                            #analysisRequestEntity.InternalUse = "checked"
+                            # analysisRequestEntity.InternalUse = "checked"
                             analysisRequestEntity.SampleType = testsToShowHistory[resultEntity.reststname].TstSpecimal1
                             analysisRequestEntity.ClientSampleID = resultEntity.reststname
-                        
-                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/ar_add?ar_count=1")
+
+                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0][
+                                "id"] + "/ar_add?ar_count=1")
                             driver.find_element_by_id('Patient-0').send_keys(patientEntity.clientPatientID)
                             time.sleep(1)
                             driver.find_element_by_id('Patient-0').send_keys(Keys.TAB)
@@ -497,46 +551,61 @@ class PatientService(AbstractService):
                             driver.find_element_by_id('SampleType-0').send_keys(Keys.ENTER)
                             driver.find_element_by_id('SampleType-0').send_keys(Keys.TAB)
                             time.sleep(2)
-                            driver.find_element_by_id('ClientSampleID-0').send_keys(analysisRequestEntity.ClientSampleID)
-                            #driver.find_element_by_id('SampleType-0').click()
+                            driver.find_element_by_id('ClientSampleID-0').send_keys(
+                                analysisRequestEntity.ClientSampleID)
+                            # driver.find_element_by_id('SampleType-0').click()
                             driver.find_element_by_id('analyses-list').click()
                             time.sleep(2)
-                            print ("Category name: ", testCategoriesMapByID[str(testsToShowHistory[resultEntity.reststname].CatNumber)].CatName)
-                            response2 = session.get(super().generateAPIUrl() + "analysiscategory?title=" + requests.utils.quote(testCategoriesMapByID[str(testsToShowHistory[resultEntity.reststname].CatNumber)].CatName), headers = headers)
+                            print("Category name: ", testCategoriesMapByID[
+                                str(testsToShowHistory[resultEntity.reststname].CatNumber)].CatName)
+                            response2 = session.get(
+                                super().generateAPIUrl() + "analysiscategory?title=" + requests.utils.quote(
+                                    testCategoriesMapByID[
+                                        str(testsToShowHistory[resultEntity.reststname].CatNumber)].CatName),
+                                headers=headers)
 
                             driver.find_element_by_id(response2.json()["items"][0]["id"]).click()
-                            response2 = session.get(super().generateAPIUrl() + "analysisservice?title=" + requests.utils.quote(testsToShowHistory[resultEntity.reststname].TstName), headers = headers)
+                            response2 = session.get(
+                                super().generateAPIUrl() + "analysisservice?title=" + requests.utils.quote(
+                                    testsToShowHistory[resultEntity.reststname].TstName), headers=headers)
                             analysis_service_title = 'cb_0_' + response2.json()["items"][0]["uid"]
-                            print (analysis_service_title)
+                            print(analysis_service_title)
                             driver.find_element_by_id(analysis_service_title).click()
                             time.sleep(3)
                             driver.find_element_by_name('save_button').click()
                             time.sleep(3)
                             temp = driver.find_element_by_id("status_message").text
                             sample_id = temp[7:-26]
-                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/" + sample_id + "/base_view")
-                            print (driver.current_url)
+                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0][
+                                "id"] + "/" + sample_id + "/base_view")
+                            print(driver.current_url)
                             driver.find_element_by_id("plone-contentmenu-workflow").click()
                             driver.find_element_by_id("workflow-transition-receive").click()
-                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/" + sample_id + "/base_view")
+                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0][
+                                "id"] + "/" + sample_id + "/base_view")
                             print(driver.find_element_by_id("archetypes-fieldname-Contact").get_attribute("data-uid"))
-                            response2 = session.get(super().generateAPIUrl() + "analysis/" + requests.utils.quote(driver.find_element_by_id("archetypes-fieldname-Contact").get_attribute("data-uid")), headers = headers)
+                            response2 = session.get(super().generateAPIUrl() + "analysis/" + requests.utils.quote(
+                                driver.find_element_by_id("archetypes-fieldname-Contact").get_attribute("data-uid")),
+                                                    headers=headers)
                             vv = "Result." + response2.json()["items"][0]["Analyses"][0]["uid"] + ":records"
-                            driver.find_element_by_name(vv).send_keys(resultEntity.result_val)
+                            driver.find_element_by_name(vv).send_keys(resultEntity.result)
                             time.sleep(1)
                             driver.find_element_by_id("ajax_save_selection").click()
                             time.sleep(2)
-                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/" + sample_id + "/base_view")
+                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0][
+                                "id"] + "/" + sample_id + "/base_view")
                             driver.find_element_by_name("uids:list").click()
                             time.sleep(1)
                             driver.find_element_by_id("submit_transition").click()
                             time.sleep(1)
-                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/" + sample_id + "/base_view")
+                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0][
+                                "id"] + "/" + sample_id + "/base_view")
                             driver.find_element_by_name("uids:list").click()
                             time.sleep(1)
                             driver.find_element_by_id("verify_transition").click()
                             time.sleep(1)
-                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0]["id"] + "/" + sample_id + "/base_view")
+                            driver.get(super().generateBrowserUrl() + "clients/" + response.json()["items"][0][
+                                "id"] + "/" + sample_id + "/base_view")
                             time.sleep(1)
                             driver.find_element_by_id("plone-contentmenu-workflow").click()
                             driver.find_element_by_id("workflow-transition-publish").click()
@@ -548,6 +617,7 @@ class PatientService(AbstractService):
                 except Exception as e:
                     message = "Unknown Exception"
                     if hasattr(e, 'message'):
-                       message = e.message
-                    Utility.write_log("PatientService", "Exception adding patient history number(" + str(pulledPatientEntity.PatNumber) +") :" + message)
+                        message = e.message
+                    Utility.write_log("PatientService", "Exception adding patient history number(" + str(
+                        pulledPatientEntity.PatNumber) + ") :" + message)
                     continue

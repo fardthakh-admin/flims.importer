@@ -1,4 +1,5 @@
 import pyodbc
+
 from utility import Utility
 from flims_entities import LabDepartmentManagerEntity, AnalysisCategoryEntity
 from pulled_entities import DepartmentEntity, TestCategoryEntity, TestEntity, TestResultTypeEntity, TestPriceEntity, TestPriceEntity2, PulledPatientEntity, TransAmountDetailsEntity, ResultEntity
@@ -11,7 +12,7 @@ from pulled_entities import DepartmentEntity, TestCategoryEntity, TestEntity, Te
 from abc import ABC, abstractmethod
 
 class AbstractDAO(ABC):
-    
+
     __slots__ = ('_flims_configurations', '_database_engine', '_database_schema', '_username', '_password', '_database_url', '_database_port')#, '_model_schema_name')
 
     @abstractmethod
@@ -176,7 +177,7 @@ class TestPriceDAO(AbstractDAO):
             cursor = con.cursor()
             selectStatement = "SELECT Idno, testname, [1995max] as max1995, [1995min] as min1995, [2008min] as min2008, [2008max] as max2008, F9, jam FROM IntegratedLAB.dbo.Testspricefinal WHERE 1 = 1"
             if criteriaDictionary != None:
-                selectStatement += super().generateWhereClause((TestPriceEntity()).getCriteriaDictionary(), criteriaDictionary) 
+                selectStatement += super().generateWhereClause((TestPriceEntity()).getCriteriaDictionary(), criteriaDictionary)
             selectStatement += ";"
             print (selectStatement)
             cursor.execute(selectStatement)
@@ -231,7 +232,7 @@ class PatientDAO(AbstractDAO):
         if (self._database_engine == "MSSQLServer2019"):
             con = super().getConnection()
             cursor = con.cursor()
-            selectStatement = "SELECT ID, PatNumber, PatName, PatarName, FORMAT (PatDateOfBirth, 'yyyy-MM-dd') as PatDateOfBirth, PatSex, PatTelephone, PatMobile, PatEmail, PatMaritalStatus FROM IntegratedLAB.dbo.Patient WHERE 1 = 1 "
+            selectStatement = "SELECT ID, PatNumber, PatName, PatarName, FORMAT (PatDateOfBirth, 'yyyy-MM-dd') as PatDateOfBirth, PatSex, PatTelephone, PatMobile, PatEmail, PatMaritalStatus FROM IntegratedLAB.dbo.Patient WHERE patNumber = 99999 "
             if criteriaDictionary != None:
                 selectStatement += super().generateWhereClause((PulledPatientEntity()).getCriteriaDictionary(), criteriaDictionary)
             selectStatement += " and PatNumber > " + str(last_patient_id)
@@ -308,10 +309,12 @@ class ResultDAO(AbstractDAO):
         if(self._database_engine == "MSSQLServer2019"):
             con = super().getConnection()
             cursor = con.cursor()
-            selectStatement = "SELECT id, restrano, reststno, reststname, result_val, resunit, restxt, resspecial, resorganisim, resdirectform, rescolonycount, reskitid, resprofile, resorder, ressemen, gp, pendding, group1, Namegroup, Position_name, MICRO4, MICRO5, MICRO6, SelReportForm, Approved, ChildVisable, confirm_level1, user_level1, confirm_level2, user_level2, depno, comment, Interpretation, tstprice, tstlocation, offRange, ViewComment, ViewInterpretation, SampleNo, testnumber, ReadyDate, sendPSM, subtestno, printed FROM IntegratedLAB.dbo.[Result] WHERE 1 = 1 "
+            selectStatement = "SELECT id, restrano, reststno, reststname, result, resunit, restxt, resspecial, resorganisim, resdirectform, rescolonycount, reskitid, resprofile, resorder, ressemen, gp, pendding, group1, Namegroup, Position_name, MICRO4, MICRO5, MICRO6, SelReportForm, Approved, ChildVisable, confirm_level1, user_level1, confirm_level2, user_level2, depno, comment, Interpretation, tstprice, tstlocation, offRange, ViewComment, ViewInterpretation, SampleNo, testnumber, ReadyDate, sendPSM, subtestno, printed FROM IntegratedLAB.dbo.[Result] WHERE 1 = 1 "
             if criteriaDictionary != None:
                 selectStatement += super().generateWhereClause((ResultEntity()).getCriteriaDictionary(), criteriaDictionary)
-            selectStatement += " AND reststname in (SELECT tstshort FROM IntegratedLAB.dbo.LabTests WHERE ShowPreviousresult IN (1)) AND TRIM(result_val) NOT LIKE '' AND result_val IS NOT NULL AND result_val NOT LIKE '%[A-Z]%' AND result_val NOT LIKE '%[:]%' AND result_val NOT LIKE '%[<]%' AND result_val NOT LIKE '%[>]%' AND result_val NOT LIKE '%[+]%' AND result_val NOT LIKE '%[-]%'"
+            selectStatement += " AND reststname in (SELECT tstshort FROM IntegratedLAB.dbo.LabTests WHERE ShowPreviousresult IN (1)) ReadyDate > "
+            selectStatement += "FORMAT (" + super()._flims_configurations["flims_configurations"][
+                "import_date"] + ", 'yyyy-MM-dd')"
             selectStatement += " ORDER BY id"
             selectStatement += " ;"
             print (selectStatement)
@@ -323,7 +326,7 @@ class ResultDAO(AbstractDAO):
                 resultEntity.restrano = row[1]
                 resultEntity.reststno = row[2].strip() if row[2] is not None else ""
                 resultEntity.reststname = row[3].strip() if row[3] is not None else ""
-                resultEntity.result_val = row[4].strip() if row[4] is not None else ""
+                resultEntity.result = row[4].strip() if row[4] is not None else ""
                 resultsList.append(resultEntity)
                 row = cursor.fetchone()
         return resultsList
