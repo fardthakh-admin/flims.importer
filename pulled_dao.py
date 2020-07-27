@@ -11,7 +11,6 @@ from pulled_entities import DepartmentEntity, TestCategoryEntity, TestEntity, Te
 from abc import ABC, abstractmethod
 
 class AbstractDAO(ABC):
-
     __slots__ = ('_flims_configurations', '_database_engine', '_database_schema', '_username', '_password', '_database_url', '_database_port')#, '_model_schema_name')
 
     @abstractmethod
